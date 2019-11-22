@@ -159,7 +159,7 @@ for iteration_name, iteration_func in solvers:
 def QLearning(env, learning, discount, epsilon, min_eps, episodes):
     # Determine size of discretized state space
     num_states = (env.observation_space.high - env.observation_space.low) * \
-                 np.array([10, 100])
+                 np.array([100, 1000])
     num_states = np.round(num_states, 0).astype(int) + 1
 
     # Initialize Q table
@@ -182,12 +182,12 @@ def QLearning(env, learning, discount, epsilon, min_eps, episodes):
         state = env.reset()
 
         # Discretize state
-        state_adj = (state - env.observation_space.low) * np.array([10, 100])
+        state_adj = (state - env.observation_space.low) * np.array([100, 1000])
         state_adj = np.round(state_adj, 0).astype(int)
 
         while done is not True:
             # Render environment for last five episodes
-            if i >= (episodes - 20):
+            if i >= (episodes - 5):
                 env.render()
 
             # Determine next action - epsilon greedy strategy
@@ -200,12 +200,13 @@ def QLearning(env, learning, discount, epsilon, min_eps, episodes):
             state2, reward, done, info = env.step(action)
 
             # Discretize state2
-            state2_adj = (state2 - env.observation_space.low) * np.array([10, 100])
+            state2_adj = (state2 - env.observation_space.low) * np.array([100, 1000])
             state2_adj = np.round(state2_adj, 0).astype(int)
 
-            # Allow for terminal states
+            # Allow for terminal states and render successful state
             if done and state2[0] >= 0.5:
                 Q[state_adj[0], state_adj[1], action] = reward
+                env.render()
 
             # Adjust Q value for current state
             else:
@@ -240,7 +241,7 @@ def QLearning(env, learning, discount, epsilon, min_eps, episodes):
 
 
 # Run Q-learning algorithm
-rewards = QLearning(env, 0.2, 0.9, 0.8, 0, 5000)
+rewards = QLearning(env, 0.2, 0.9, 0.8, 0, 450000)
 
 # Plot Rewards
 plt.plot(100 * (np.arange(len(rewards)) + 1), rewards)

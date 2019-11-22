@@ -182,21 +182,22 @@ def QLearning(env, learning, discount, epsilon, min_eps, episodes):
 
         while done is not True:
             # Render environment for last five episodes
-            if i >= (episodes - 20):
+            if i >= (episodes - 5):
                 env.render()
 
             # Determine next action - epsilon greedy strategy
             if np.random.random() < 1 - epsilon:
-                action = env.action_space.sample()
-            else:
                 action = np.argmax(Q[state, :])
+            else:
+                action = env.action_space.sample()
 
             # Get next state and reward
             state2, reward, done, info = env.step(action)
 
-            # Allow for terminal states
+            # Allow for terminal states and render successful state
             if done:
                 Q[state, action] = reward
+                env.render()
 
             # Adjust Q value for current state
             else:
