@@ -7,7 +7,6 @@ Modified by Matthieu Divet (mdivet3@gatech.edu)
 
 import numpy as np
 import gym
-from gym import envs
 import matplotlib.pyplot as plt
 import time
 
@@ -15,10 +14,10 @@ import time
 env = gym.make('MountainCar-v0')
 env.reset()
 mountain_car_nA = 3
-# discretization of the environment's state space into a 181 x 141 space = 25521 possible states
-# (position in the range [-120, 60]/100 and velocity in the range [-70, 70]/1000)
+# discretization of the environment's state space into a 91 x 71 space = 6461 possible states
+# (position in the range [-60, 30]/50 and velocity in the range [-35, 35]/500)
 mountain_car_discretized_nS = np.prod(np.round((env.observation_space.high - env.observation_space.low)
-                                               * np.array([100, 1000]), 0).astype(int) + 1)
+                                               * np.array([50, 500]), 0).astype(int) + 1)
 
 
 def one_step_lookahead(environment, state, V, discount_factor):
@@ -44,13 +43,13 @@ def one_step_lookahead(environment, state, V, discount_factor):
     if the next state is final and info based on the state we set.
     """
     action_values = np.zeros(mountain_car_nA)
-    position = float((state // 141) - 120) / 100
-    velocity = float(state - 141 * (state // 141) - 70) / 1000
+    position = float((state // 71) - 60) / 50
+    velocity = float(state - 71 * (state // 71) - 35) / 500
     environment.state = np.array([position, velocity])
     for action in range(mountain_car_nA):
         next_state, reward, done, info = environment.step(action)
-        next_state_index = ((np.round(next_state[0] * 100, 0).astype(int) + 120) * 141) \
-                           + np.round(next_state[1] * 1000, 0).astype(int) + 70
+        next_state_index = ((np.round(next_state[0] * 50, 0).astype(int) + 60) * 71) \
+                           + np.round(next_state[1] * 500, 0).astype(int) + 35
         action_values[action] += reward + discount_factor * V[next_state_index]
     return action_values
 
@@ -66,8 +65,8 @@ def policy_evaluation(policy, environment, discount_factor=1.0, theta=0.001, max
         delta = 0
         # Iterate though each state
         for state in range(mountain_car_discretized_nS):
-            position = float((state // 141) - 120) / 100
-            velocity = float(state - 141 * (state // 141) - 70) / 1000
+            position = float((state // 71) - 60) / 50
+            velocity = float(state - 71 * (state // 71) - 35) / 500
             environment.state = np.array([position, velocity])
             # Initial a new value of current state
             v = 0
@@ -79,8 +78,8 @@ def policy_evaluation(policy, environment, discount_factor=1.0, theta=0.001, max
                 # the state as if the action to take was indeed the one given by the policy we're evaluating. This
                 # is linked to the absence of a max over the possible actions in the formula for the U_t(s))
                 next_state, reward, done, info = environment.step(action)
-                next_state_index = ((np.round(next_state[0] * 100, 0).astype(int) + 120) * 141) \
-                                   + np.round(next_state[1] * 1000, 0).astype(int) + 70
+                next_state_index = ((np.round(next_state[0] * 50, 0).astype(int) + 60) * 71) \
+                                   + np.round(next_state[1] * 500, 0).astype(int) + 35
                 v += action_probability * (reward + discount_factor * V[next_state_index])
             # Calculate the absolute change of value function
             delta = max(delta, np.abs(V[state] - v))
