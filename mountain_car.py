@@ -11,16 +11,16 @@ import matplotlib.pyplot as plt
 import time
 
 # Import and initialize Mountain Car Environment
-env = gym.make('MountainCar-v0')
-env.reset()
+environment = gym.make('MountainCar-v0')
+environment.reset()
 mountain_car_nA = 3
 # discretization of the environment's state space into a 91 x 71 space = 6461 possible states
 # (position in the range [-60, 30]/50 and velocity in the range [-35, 35]/500)
-mountain_car_discretized_nS = np.prod(np.round((env.observation_space.high - env.observation_space.low)
+mountain_car_discretized_nS = np.prod(np.round((environment.observation_space.high - environment.observation_space.low)
                                                * np.array([50, 500]), 0).astype(int) + 1)
 
 
-def one_step_lookahead(environment, state, V, discount_factor):
+def one_step_lookahead(env, state, utility, discount_factor):
     """
     max(action_values) = max(sum [(1/nb_of_possible_s') * r(s) + T(s, a, s') * gamma * U(s')])
                        = r(s) + gamma * max(sum [T(s, a, s') * U(s')])
@@ -45,20 +45,20 @@ def one_step_lookahead(environment, state, V, discount_factor):
     action_values = np.zeros(mountain_car_nA)
     position = float((state // 71) - 60) / 50
     velocity = float(state - 71 * (state // 71) - 35) / 500
-    environment.state = np.array([position, velocity])
+    env.state = np.array([position, velocity])
     for action in range(mountain_car_nA):
-        next_state, reward, done, info = environment.step(action)
+        next_state, reward, done, info = env.step(action)
         next_state_index = ((np.round(next_state[0] * 50, 0).astype(int) + 60) * 71) \
                            + np.round(next_state[1] * 500, 0).astype(int) + 35
-        action_values[action] += reward + discount_factor * V[next_state_index]
+        action_values[action] += reward + discount_factor * utility[next_state_index]
     return action_values
 
 
-def policy_evaluation(policy, environment, discount_factor=1.0, theta=0.001, max_iterations=1e9):
+def policy_evaluation(pol, env, discount_factor=1.0, theta=2, max_iterations=1e9):
     # Number of evaluation iterations
     evaluation_iterations = 1
     # Initialize a value function for each state as zero
-    V = np.zeros(mountain_car_discretized_nS)
+    utility = np.zeros(mountain_car_discretized_nS)
     # Repeat until change in value is below the threshold
     for i in range(int(max_iterations)):
         # Initialize a change of value function as zero
@@ -67,35 +67,35 @@ def policy_evaluation(policy, environment, discount_factor=1.0, theta=0.001, max
         for state in range(mountain_car_discretized_nS):
             position = float((state // 71) - 60) / 50
             velocity = float(state - 71 * (state // 71) - 35) / 500
-            environment.state = np.array([position, velocity])
+            env.state = np.array([position, velocity])
             # Initial a new value of current state
-            v = 0
+            u = 0
             # Try all possible actions which can be taken from this state
-            for action, action_probability in enumerate(policy[state]):
+            for action, action_probability in enumerate(pol[state]):
                 # Check how good next state will be
                 # Calculate the expected value (action_probability will actually just be 0 or 1, except in the
                 # very first iteration of policy_iteration() - therefore we will indeed be evaluating the utility of
                 # the state as if the action to take was indeed the one given by the policy we're evaluating. This
                 # is linked to the absence of a max over the possible actions in the formula for the U_t(s))
-                next_state, reward, done, info = environment.step(action)
+                next_state, reward, done, info = env.step(action)
                 next_state_index = ((np.round(next_state[0] * 50, 0).astype(int) + 60) * 71) \
                                    + np.round(next_state[1] * 500, 0).astype(int) + 35
-                v += action_probability * (reward + discount_factor * V[next_state_index])
+                u += action_probability * (reward + discount_factor * utility[next_state_index])
             # Calculate the absolute change of value function
-            delta = max(delta, np.abs(V[state] - v))
+            delta = max(delta, np.abs(utility[state] - u))
             # Update value function
-            V[state] = v
+            utility[state] = u
         evaluation_iterations += 1
         # Terminate if value change is insignificant
         if delta < theta:
             print('Policy evaluated in {} iterations.'.format(evaluation_iterations))
-            return V
+            return utility
 
 
-def policy_iteration(environment, discount_factor=1.0, max_iterations=1e9):
+def policy_iteration(envi, discount_factor=1.0, max_iterations=1e9):
     # Start with a random policy
     # num states x num actions / num actions
-    policy = np.ones([mountain_car_discretized_nS, mountain_car_nA]) / mountain_car_nA
+    poli = np.ones([mountain_car_discretized_nS, mountain_car_nA]) / mountain_car_nA
     # Initialize counter of evaluated policies
     evaluated_policies = 0
     # Repeat until convergence or critical number of iterations reached
@@ -103,14 +103,14 @@ def policy_iteration(environment, discount_factor=1.0, max_iterations=1e9):
     for i in range(int(max_iterations)):
         stable_policy = True
         # Evaluate current policy
-        V = policy_evaluation(policy, environment, discount_factor=discount_factor)
+        U = policy_evaluation(poli, envi, discount_factor=discount_factor)
         # Go through each state and try to improve actions that were taken (policy Improvement)
         for state in range(mountain_car_discretized_nS):
             # Choose the best action in a current state under current policy
-            current_action = np.argmax(policy[state])
+            current_action = np.argmax(poli[state])
             # Look one step ahead and evaluate if current action is optimal
             # We will try every possible action in a current state
-            action_value = one_step_lookahead(environment, state, V, discount_factor)
+            action_value = one_step_lookahead(envi, state, U, discount_factor)
             # Select a better action
             best_action = np.argmax(action_value)
             # If action changed
@@ -119,18 +119,18 @@ def policy_iteration(environment, discount_factor=1.0, max_iterations=1e9):
                 # Greedy policy update
                 # set all actions to 0 and the best action to 1 for current state in the matrix that represents
                 # the policy
-                policy[state] = np.eye(mountain_car_nA)[best_action]
+                poli[state] = np.eye(mountain_car_nA)[best_action]
         evaluated_policies += 1
         # If the algorithm converged and policy is not changing anymore, then return final policy and value function
         if stable_policy:
             print('Evaluated {} policies.'.format(evaluated_policies))
             print('Evaluated in {} seconds.'.format(round(time.time() - t0, 2)))
-            return policy, V
+            return poli, U
 
 
-def value_iteration(env, discount_factor=1.0, theta=1e-9, max_iterations=1e9):
+def value_iteration(env, discount_factor=1.0, theta=2, max_iterations=1e9):
     # Initialize state-value function with zeros for each environment state
-    V = np.zeros(mountain_car_discretized_nS)
+    utility = np.zeros(mountain_car_discretized_nS)
     t0 = time.time()
     for i in range(int(max_iterations)):
         # Early stopping condition
@@ -138,13 +138,13 @@ def value_iteration(env, discount_factor=1.0, theta=1e-9, max_iterations=1e9):
         # Update each state
         for state in range(mountain_car_discretized_nS):
             # Do a one-step lookahead to calculate state-action values
-            action_value = one_step_lookahead(env, state, V, discount_factor)
+            action_value = one_step_lookahead(env, state, utility, discount_factor)
             # Select best action to perform based on the highest state-action value
             best_action_value = np.max(action_value)
             # Calculate change in value
-            delta = max(delta, np.abs(V[state] - best_action_value))
+            delta = max(delta, np.abs(utility[state] - best_action_value))
             # Update the value function for current state
-            V[state] = best_action_value
+            utility[state] = best_action_value
             # Check if we can stop
             # the utility function has converged - another iteration wouldn't improve its estimation by more than theta)
         if delta < theta:
@@ -153,37 +153,37 @@ def value_iteration(env, discount_factor=1.0, theta=1e-9, max_iterations=1e9):
             break
 
     # Create a deterministic policy using the optimal value function
-    policy = np.zeros([mountain_car_discretized_nS, mountain_car_nA])
+    pol = np.zeros([mountain_car_discretized_nS, mountain_car_nA])
     for state in range(mountain_car_discretized_nS):
         # One step lookahead to find the best action for this state
-        action_value = one_step_lookahead(env, state, V, discount_factor)
+        action_value = one_step_lookahead(env, state, utility, discount_factor)
         # Select best action based on the highest state-action value
         best_action = np.argmax(action_value)
         # Update the policy to perform a better action at a current state
-        policy[state, best_action] = 1.0
-    return policy, V
+        pol[state, best_action] = 1.0
+    return pol, utility
 
 
-def play_episodes(environment, n_episodes, policy):
-    wins = 0
-    total_reward = 0
-    for episode in range(n_episodes):
+def play_episodes(env, nb_episodes, pol):
+    win = 0
+    tot_reward = 0
+    for episode in range(nb_episodes):
         terminated = False
-        state = environment.reset()
+        state = env.reset()
         while not terminated:
             # Select best action to perform in a current state
-            action = np.argmax(policy[state])
+            action = np.argmax(pol[state])
             # Perform an action an observe how environment acted in response
-            next_state, reward, terminated, info = environment.step(action)
+            next_state, reward, terminated, info = env.step(action)
             # Summarize total reward
-            total_reward += reward
+            tot_reward += reward
             # Update current state
             state = next_state
             # Calculate number of wins over episodes
             if terminated and reward == 1.0:
-                wins += 1
-    average_reward = total_reward / n_episodes
-    return wins, total_reward, average_reward
+                win += 1
+    avg_reward = tot_reward / nb_episodes
+    return win, tot_reward, avg_reward
 
 
 # Number of episodes to play
@@ -287,13 +287,14 @@ def QLearning(env, learning, discount, epsilon, min_eps, episodes):
 
     return ave_reward_list
 
-# # Run Q-learning algorithm
-# rewards = QLearning(env, 0.2, 0.9, 0.8, 0, 450000)
-#
-# # Plot Rewards
-# plt.plot(100 * (np.arange(len(rewards)) + 1), rewards)
-# plt.xlabel('Episodes')
-# plt.ylabel('Average Reward')
-# plt.title('Average Reward vs Episodes')
-# plt.savefig('../Rewards_graphs/rewards_mountain_car.jpg')
-# plt.close()
+
+# Run Q-learning algorithm
+rewards = QLearning(environment, 0.2, 0.9, 0.8, 0, 450000)
+
+# Plot Rewards
+plt.plot(100 * (np.arange(len(rewards)) + 1), rewards)
+plt.xlabel('Episodes')
+plt.ylabel('Average Reward')
+plt.title('Average Reward vs Episodes')
+plt.savefig('../Rewards_graphs/rewards_mountain_car.jpg')
+plt.close()
