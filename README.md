@@ -43,7 +43,7 @@ to the Python scripts and the line ```upload_file("{}.png".format(title))``` aft
 
 For this to work you will need a Google Cloud Platform account and create a project with an access to their Google Cloud Storage API. There you can generate a json file containint you credentials (download it and replace ```'/path/to/credentials.json'``` with the correct path to this file). Finally, create a bucket on Google Cloud Storage interface.
 
-You will need to [create a repo in the GCP console](https://console.cloud.google.com/code/develop/repo?hl=fr&_ga=2.48832550.-1843116383.1569054709). Upload your local project to this repo by using Google's SDK and the commands ```git remote add google https://source.developers.google.com/p/[YOUR_PROJECT_ID]/r/[YOUR_BUCKET_NAME]``` (insert your project's ID and your bucket's name where needed), ```git commit -am "Commit title"``` and ```git push cloud master```.
+You will need to [create a repo in the GCP console](https://console.cloud.google.com/code/develop/repo?hl=fr&_ga=2.48832550.-1843116383.1569054709). Upload your local project to this repo by using Google's SDK and the commands ```git remote add google https://source.developers.google.com/p/[YOUR_PROJECT_ID]/r/[YOUR_BUCKET_NAME]``` (insert your project's ID and your bucket's name where needed), ```git commit -am "Commit title"``` and ```git push cloud master```. Or, you can also use the graphic interface on GCP to clone a github repository directly.
 
 You will also need to activate Google Compute Engine API on your account.
 
