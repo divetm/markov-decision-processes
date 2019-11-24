@@ -87,7 +87,7 @@ def policy_evaluation(policy, environment, discount_factor=1.0, theta=0.001, max
         evaluation_iterations += 1
         # Terminate if value change is insignificant
         if delta < theta:
-            print(f'Policy evaluated in {evaluation_iterations} iterations.')
+            print('Policy evaluated in {} iterations.'.format(evaluation_iterations))
             return V
 
 
@@ -122,8 +122,8 @@ def policy_iteration(environment, discount_factor=1.0, max_iterations=1e9):
         evaluated_policies += 1
         # If the algorithm converged and policy is not changing anymore, then return final policy and value function
         if stable_policy:
-            print(f'Evaluated {evaluated_policies} policies.')
-            print(f'Evaluated in {round(time.time() - t0, 2)} seconds.')
+            print('Evaluated {} policies.'.format(evaluated_policies))
+            print('Evaluated in {} seconds.'.format(round(time.time() - t0, 2)))
             return policy, V
 
 
@@ -147,8 +147,8 @@ def value_iteration(env, discount_factor=1.0, theta=1e-9, max_iterations=1e9):
             # Check if we can stop
             # the utility function has converged - another iteration wouldn't improve its estimation by more than theta)
         if delta < theta:
-            print(f'Value-iteration converged at iteration #{i}.')
-            print(f'Converged after {round(time.time() - t0, 2)} seconds.')
+            print('Value-iteration converged at iteration #{}.'.format(i))
+            print('Converged after {} seconds.'.format(round(time.time() - t0, 2)))
             break
 
     # Create a deterministic policy using the optimal value function
@@ -197,9 +197,9 @@ for iteration_name, iteration_func in solvers:
     policy, V = iteration_func(environment.env)
     # Apply best policy to the real environment
     wins, total_reward, average_reward = play_episodes(environment, n_episodes, policy)
-    print(f'{iteration_name} :: policy found = {policy}')
-    print(f'{iteration_name} :: number of wins over {n_episodes} episodes = {wins}')
-    print(f'{iteration_name} :: average reward over {n_episodes} episodes = {average_reward} \n\n')
+    print('{} :: policy found = {}'.format(iteration_name, policy))
+    print('{} :: number of wins over {} episodes = {}'.format(iteration_name, n_episodes, wins))
+    print('{} :: average reward over {} episodes = {} \n\n'.format(iteration_name, n_episodes, average_reward))
 
 
 # Define Q-learning function
