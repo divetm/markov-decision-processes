@@ -13,7 +13,14 @@ This file contains all the necessary packages for this project. (Running ```pip 
 
 frozen_lake.py and mountain_car.py
 ----
-
+These files contain the Python scripts that are useful for this assignment. These scripts will:
+- set up an environment (some application of a Markov Decision Process). Each file focuses on one of the two environments studied here. These environments are given by the OpenAI gym ilbrary, and are the [frozen lake environment](http://gym.openai.com/envs/FrozenLake-v0/) (which is a Grid world with a small number of states - i.e. 16) and the [mountain car environment](http://gym.openai.com/envs/MountainCar-v0/) (which is described by a continuous space of states that we will discretize, in order to get a large number of discrete states - i.e. 6461)
+- run an implementation of the Value Iteration algorithm (returns an estimation of the optimal policy for the studied environment)
+- run an implementation of the Policy Iteration algorithm (returns an estimation of the optimal policy for the studied environment)
+- compare results (policies) and efficiencies of the Value and Policy Iteration algorithms
+- run an implementation of a Q-learning algorithm (returns an estimation of the optimal policy for the studied environment)
+- render some episodes of this Q-learning algorithm and plot a graph of the average reward versus number of episodes
+The different algorithms have been adapted to each problem (which explains the differences between their implementation in both files), but apart from these minor differences they operate exactly the same way for both environments. Which means we can directly compare the results of these algorithms on the two environments, to analyze their behavior and efficiency when applied to different MDPs.
 
 Using Google Cloud Compute Engine
 ----
