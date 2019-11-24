@@ -180,7 +180,7 @@ for iteration_name, iteration_func in solvers:
 
 
 # Define Q-learning function
-def QLearning(env, learning, discount, epsilon, min_eps, episodes):
+def QLearning(env, learning, discount, epsilon, min_eps, episodes, exploration="linear-decay"):
     # Determine size of discretized state space
     num_states = 16
 
@@ -191,8 +191,12 @@ def QLearning(env, learning, discount, epsilon, min_eps, episodes):
     reward_list = []
     ave_reward_list = []
 
-    # Calculate episodic reduction in epsilon
+    # Calculate episodic reduction in epsilon in case exploration == "linear-decay"
     reduction = (epsilon - min_eps) / episodes
+
+    # If exploration == "greedy" then epsilon needs to be 0
+    if exploration == "greedy":
+        epsilon = 0
 
     # Run Q learning algorithm
     for i in range(episodes):
@@ -206,7 +210,7 @@ def QLearning(env, learning, discount, epsilon, min_eps, episodes):
             if i >= (episodes - 5):
                 env.render()
 
-            # Determine next action - epsilon greedy strategy
+            # Determine next action - epsilon greedy strategy (if epsilon == 0 this is just a greedy exploration)
             if np.random.random() < 1 - epsilon:
                 action = np.argmax(Q[state, :])
             else:
@@ -231,7 +235,11 @@ def QLearning(env, learning, discount, epsilon, min_eps, episodes):
 
         # Decay epsilon
         if epsilon > min_eps:
-            epsilon -= reduction
+            if exploration == "linear-decay":
+                epsilon -= reduction
+            elif exploration == "exp-decay":
+                epsilon *= 1 / 2
+            # elif exploration == "greedy" or exploration == "epsilon-greedy" epsilon mudt not change
 
         # Track rewards
         reward_list.append(tot_reward)
@@ -250,7 +258,7 @@ def QLearning(env, learning, discount, epsilon, min_eps, episodes):
 
 
 # Run Q-learning algorithm
-rewards = QLearning(env, 0.2, 0.9, 0.8, 0, 1000000)
+rewards = QLearning(env, 0.2, 0.9, 0.8, 0, 1000000, exploration="linear-decay")
 
 # Plot Rewards
 plt.plot(100 * (np.arange(len(rewards)) + 1), rewards)

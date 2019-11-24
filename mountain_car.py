@@ -102,6 +102,7 @@ def policy_iteration(envi, discount_factor=1.0, max_iterations=1e9):
     t0 = time.time()
     for i in range(int(max_iterations)):
         stable_policy = True
+        changes_in_policy = 0
         # Evaluate current policy
         U = policy_evaluation(poli, envi, discount_factor=discount_factor)
         # Go through each state and try to improve actions that were taken (policy Improvement)
@@ -116,11 +117,13 @@ def policy_iteration(envi, discount_factor=1.0, max_iterations=1e9):
             # If action changed
             if current_action != best_action:
                 stable_policy = False
+                changes_in_policy += 1
                 # Greedy policy update
                 # set all actions to 0 and the best action to 1 for current state in the matrix that represents
                 # the policy
                 poli[state] = np.eye(mountain_car_nA)[best_action]
         evaluated_policies += 1
+        print('{} actions changed.'.format(changes_in_policy))
         # If the algorithm converged and policy is not changing anymore, then return final policy and value function
         if stable_policy:
             print('Evaluated {} policies.'.format(evaluated_policies))
@@ -204,7 +207,7 @@ for iteration_name, iteration_func in solvers:
 
 
 # Define Q-learning function
-def QLearning(env, learning, discount, epsilon, min_eps, episodes):
+def QLearning(env, learning, discount, epsilon, min_eps, episodes, exploration="linear-decay"):
     # Determine size of discretized state space
     num_states = (env.observation_space.high - env.observation_space.low) * \
                  np.array([100, 1000])
@@ -219,8 +222,12 @@ def QLearning(env, learning, discount, epsilon, min_eps, episodes):
     reward_list = []
     ave_reward_list = []
 
-    # Calculate episodic reduction in epsilon
+    # Calculate episodic reduction in epsilon in case exploration == "linear-decay"
     reduction = (epsilon - min_eps) / episodes
+
+    # If exploration == "greedy" then epsilon needs to be 0
+    if exploration == "greedy":
+        epsilon = 0
 
     # Run Q learning algorithm
     for i in range(episodes):
@@ -238,7 +245,7 @@ def QLearning(env, learning, discount, epsilon, min_eps, episodes):
             if i >= (episodes - 5):
                 env.render()
 
-            # Determine next action - epsilon greedy strategy
+            # Determine next action - epsilon greedy strategy (if epsilon == 0 this is just a greedy exploration)
             if np.random.random() < 1 - epsilon:
                 action = np.argmax(Q[state_adj[0], state_adj[1]])
             else:
@@ -270,7 +277,11 @@ def QLearning(env, learning, discount, epsilon, min_eps, episodes):
 
         # Decay epsilon
         if epsilon > min_eps:
-            epsilon -= reduction
+            if exploration == "linear-decay":
+                epsilon -= reduction
+            elif exploration == "exp-decay":
+                epsilon *= 1/2
+            # elif exploration == "greedy" or exploration == "epsilon-greedy" epsilon mudt not change
 
         # Track rewards
         reward_list.append(tot_reward)
@@ -289,7 +300,7 @@ def QLearning(env, learning, discount, epsilon, min_eps, episodes):
 
 
 # Run Q-learning algorithm
-rewards = QLearning(environment, 0.2, 0.9, 0.8, 0, 450000)
+rewards = QLearning(environment, 0.2, 0.9, 0.8, 0, 450000, exploration="linear-decay")
 
 # Plot Rewards
 plt.plot(100 * (np.arange(len(rewards)) + 1), rewards)
