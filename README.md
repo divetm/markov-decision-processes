@@ -13,7 +13,7 @@ This file contains all the necessary packages for this project. (Running ```pip 
 
 frozen_lake.py and mountain_car.py
 ----
-These files contain the Python scripts that are useful for this assignment. You simply have to run them. These scripts will:
+These files contain the Python scripts that are useful for this assignment. You simply have to run them after cloning this git. These scripts will:
 - set up an environment (some application of a Markov Decision Process). Each file focuses on one of the two environments studied here. These environments are given by the OpenAI gym ilbrary, and are the [frozen lake environment](http://gym.openai.com/envs/FrozenLake-v0/) (which is a Grid world with a small number of states - i.e. 16) and the [mountain car environment](http://gym.openai.com/envs/MountainCar-v0/) (which is described by a continuous space of states that we will discretize, in order to get a large number of discrete states - i.e. 6461)
 - run an implementation of the Value Iteration algorithm (returns an estimation of the optimal policy for the studied environment)
 - run an implementation of the Policy Iteration algorithm (returns an estimation of the optimal policy for the studied environment)
