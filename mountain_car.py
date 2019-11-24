@@ -7,6 +7,7 @@ Modified by Matthieu Divet (mdivet3@gatech.edu)
 
 import numpy as np
 import gym
+from gym import envs
 import matplotlib.pyplot as plt
 import time
 
@@ -37,14 +38,15 @@ def one_step_lookahead(environment, state, V, discount_factor):
     and argmax(action_values) in policy_iteration().
 
 
-    Also, we modified the definition of env.reset() for the Mountain Car environment for it to accept a given state as
-    an argument. Therefore, env.reset(np.array([position, velocity])) where position is in the range [-1.2, 0.6] and
-    velocity is in the range [-0.07, 0.07] will set the environment to the state [position, velocity]. We use this here.
+    Also, this environment does not have a transition matrix like Frozen Lake. So, to analyze state s, we convert its
+    index into the corresponding values (position, velocity) and we then set the environment's state to be
+    [position, velocity). Therefore, calling environment.step(action) will now give the next state, the reward,
+    if the next state is final and info based on the state we set.
     """
     action_values = np.zeros(mountain_car_nA)
     position = float((state // 141) - 120) / 100
     velocity = float(state - 141 * (state // 141) - 70) / 1000
-    environment.reset(np.array([position, velocity]))
+    environment.state = np.array([position, velocity])
     for action in range(mountain_car_nA):
         next_state, reward, done, info = environment.step(action)
         next_state_index = ((np.round(next_state[0] * 100, 0).astype(int) + 120) * 141) \
@@ -66,7 +68,7 @@ def policy_evaluation(policy, environment, discount_factor=1.0, theta=0.001, max
         for state in range(mountain_car_discretized_nS):
             position = float((state // 141) - 120) / 100
             velocity = float(state - 141 * (state // 141) - 70) / 1000
-            environment.reset(np.array([position, velocity]))
+            environment.state = np.array([position, velocity])
             # Initial a new value of current state
             v = 0
             # Try all possible actions which can be taken from this state
