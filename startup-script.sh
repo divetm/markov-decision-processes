@@ -22,7 +22,7 @@ pip install --upgrade pip virtualenv
 # git requires $HOME and it's not set during the startup script.
 export HOME=/root
 git config --global credential.helper gcloud.sh
-git clone https://source.developers.google.com/p/$PROJECTID/r/github_divetm_markov-decision-processes /opt/app
+git clone https://source.developers.google.com/p/$PROJECTID/r/[YOUR_REPO_NAME] /opt/app
 
 # Install app dependencies
 virtualenv -p python3 /opt/app/venv
@@ -36,7 +36,7 @@ chown -R pythonapp:pythonapp /opt/app
 cat >/etc/supervisor/conf.d/python-app.conf << EOF
 [program:pythonapp]
 directory=/opt/app
-command=/opt/app/venv/bin/python /opt/app/mountain_car.py
+command=/opt/app/venv/bin/python /opt/app/[YOUR_PYTHON_SCRIPT_NAME].py
 autostart=true
 autorestart=true
 user=pythonapp
