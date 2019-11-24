@@ -300,7 +300,7 @@ def QLearning(env, learning, discount, epsilon, min_eps, episodes, exploration="
 
 
 # Run Q-learning algorithm
-rewards = QLearning(environment, 0.2, 0.9, 0.8, 0, 450000, exploration="linear-decay")
+rewards = QLearning(environment, 0.2, 0.9, 0.8, 0, 40000, exploration="linear-decay")
 
 # Plot Rewards
 plt.plot(100 * (np.arange(len(rewards)) + 1), rewards)
