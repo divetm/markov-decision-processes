@@ -11,6 +11,7 @@ Modified by Matthieu Divet (mdivet3@gatech.edu)
 import numpy as np
 import gym
 import matplotlib.pyplot as plt
+import time
 
 # Import and initialize Mountain Car Environment
 env = gym.make('FrozenLake-v0')
@@ -23,8 +24,8 @@ def one_step_lookahead(environment, state, V, discount_factor):
         for probability, next_state, reward, terminated in environment.P[state][action]:
             action_values[action] += 1 / len(environment.P[state][action]) * reward +\
                                      probability * discount_factor * V[next_state]
-            # max(action_values) = max(sum [(1/nb_of_possible_s') * r(s) + T(s_a_s') * gamma * U(s')])
-            #                    = r(s) + gamma * max(sum [T(s_a_s') * U(s')])
+            # max(action_values) = max(sum [(1/nb_of_possible_s') * r(s) + T(s, a, s') * gamma * U(s')])
+            #                    = r(s) + gamma * max(sum [T(s, a, s') * U(s')])
             # with max over the possible actions at state s and the sum over the possible s'
             # which is Bellman's equation, seen in class. Therefore we can use max(action_values) in value_iteration()
             # and argmax(action_values) in policy_iteration().
@@ -72,6 +73,7 @@ def policy_iteration(environment, discount_factor=1.0, max_iterations=1e9):
     # Initialize counter of evaluated policies
     evaluated_policies = 0
     # Repeat until convergence or critical number of iterations reached
+    t0 = time.time()
     for i in range(int(max_iterations)):
         stable_policy = True
         # Evaluate current policy
@@ -96,12 +98,14 @@ def policy_iteration(environment, discount_factor=1.0, max_iterations=1e9):
         # If the algorithm converged and policy is not changing anymore, then return final policy and value function
         if stable_policy:
             print(f'Evaluated {evaluated_policies} policies.')
+            print(f'Evaluated in {round(time.time()-t0, 2)} seconds.')
             return policy, V
 
 
 def value_iteration(environment, discount_factor=1.0, theta=1e-9, max_iterations=1e9):
     # Initialize state-value function with zeros for each environment state
     V = np.zeros(environment.nS)
+    t0 = time.time()
     for i in range(int(max_iterations)):
         # Early stopping condition (if delta < theta then the algorithm will stop - before i = max_iterations)
         delta = 0
@@ -120,6 +124,7 @@ def value_iteration(environment, discount_factor=1.0, theta=1e-9, max_iterations
             # the utility function has converged - another iteration wouldn't improve its estimation by more than theta)
         if delta < theta:
             print(f'Value-iteration converged at iteration #{i}.')
+            print(f'Converged after {round(time.time() - t0, 2)} seconds.')
             break
 
     # Create a deterministic policy using the optimal value function
@@ -169,6 +174,7 @@ for iteration_name, iteration_func in solvers:
     policy, V = iteration_func(environment.env)
     # Apply best policy to the real environment
     wins, total_reward, average_reward = play_episodes(environment, n_episodes, policy)
+    print(f'{iteration_name} :: policy found = {policy}')
     print(f'{iteration_name} :: number of wins over {n_episodes} episodes = {wins}')
     print(f'{iteration_name} :: average reward over {n_episodes} episodes = {average_reward} \n\n')
 

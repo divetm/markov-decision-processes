@@ -8,49 +8,78 @@ Modified by Matthieu Divet (mdivet3@gatech.edu)
 import numpy as np
 import gym
 import matplotlib.pyplot as plt
+import time
 
 # Import and initialize Mountain Car Environment
 env = gym.make('MountainCar-v0')
 env.reset()
+mountain_car_nA = 3
+# discretization of the environment's state space into a 181 x 141 space = 25521 possible states
+# (position in the range [-120, 60]/100 and velocity in the range [-70, 70]/1000)
+mountain_car_discretized_nS = np.prod(np.round((env.observation_space.high - env.observation_space.low)
+                                               * np.array([100, 1000]), 0).astype(int) + 1)
 
 
 def one_step_lookahead(environment, state, V, discount_factor):
-    action_values = np.zeros(environment.nA)
-    for action in range(environment.nA):
-        for probability, next_state, reward, terminated in environment.P[state][action]:
-            action_values[action] += 1 / len(environment.P[state][action]) * reward + \
-                                     probability * discount_factor * V[next_state]
-            # max(action_values) = max(sum [(1/nb_of_possible_s') * r(s) + T(s_a_s') * gamma * U(s')])
-            #                    = r(s) + gamma * max(sum [T(s_a_s') * U(s')])
-            # with max over the possible actions at state s and the sum over the possible s'
-            # which is Bellman's equation, seen in class. Therefore we can use max(action_values) in value_iteration()
-            # and argmax(action_values) in policy_iteration().
+    """
+    max(action_values) = max(sum [(1/nb_of_possible_s') * r(s) + T(s, a, s') * gamma * U(s')])
+                       = r(s) + gamma * max(sum [T(s, a, s') * U(s')])
+    with max over the possible actions at state s and the sum over the possible s'
+    and where T(s, a, s') = 1 because of the following piece of code from the definition of env.step(action):
+            position, velocity = self.state
+            velocity += (action-1)*self.force + math.cos(3*position)*(-self.gravity)
+            velocity = np.clip(velocity, -self.max_speed, self.max_speed)
+            position += velocity
+            position = np.clip(position, self.min_position, self.max_position)
+            if (position==self.min_position and velocity<0): velocity = 0
+    which means that s' (given by [position, velocity]) is entirely defined by s and a.
+    This is Bellman's equation, seen in class. Therefore we can use max(action_values) in value_iteration()
+    and argmax(action_values) in policy_iteration().
+
+
+    Also, we modified the definition of env.reset() for the Mountain Car environment for it to accept a given state as
+    an argument. Therefore, env.reset(np.array([position, velocity])) where position is in the range [-1.2, 0.6] and
+    velocity is in the range [-0.07, 0.07] will set the environment to the state [position, velocity]. We use this here.
+    """
+    action_values = np.zeros(mountain_car_nA)
+    position = float((state // 141) - 120) / 100
+    velocity = float(state - 141 * (state // 141) - 70) / 1000
+    environment.reset(np.array([position, velocity]))
+    for action in range(mountain_car_nA):
+        next_state, reward, done, info = environment.step(action)
+        next_state_index = ((np.round(next_state[0] * 100, 0).astype(int) + 120) * 141) \
+                           + np.round(next_state[1] * 1000, 0).astype(int) + 70
+        action_values[action] += reward + discount_factor * V[next_state_index]
     return action_values
 
 
-def policy_evaluation(policy, environment, discount_factor=1.0, theta=1e-9, max_iterations=1e9):
+def policy_evaluation(policy, environment, discount_factor=1.0, theta=0.001, max_iterations=1e9):
     # Number of evaluation iterations
     evaluation_iterations = 1
     # Initialize a value function for each state as zero
-    V = np.zeros(environment.nS)
+    V = np.zeros(mountain_car_discretized_nS)
     # Repeat until change in value is below the threshold
     for i in range(int(max_iterations)):
         # Initialize a change of value function as zero
         delta = 0
         # Iterate though each state
-        for state in range(environment.nS):
+        for state in range(mountain_car_discretized_nS):
+            position = float((state // 141) - 120) / 100
+            velocity = float(state - 141 * (state // 141) - 70) / 1000
+            environment.reset(np.array([position, velocity]))
             # Initial a new value of current state
             v = 0
             # Try all possible actions which can be taken from this state
             for action, action_probability in enumerate(policy[state]):
                 # Check how good next state will be
-                for state_probability, next_state, reward, terminated in environment.P[state][action]:
-                    # Calculate the expected value (action_probability will actually just be 0 or 1, except in the
-                    # very first iteration of policy_iteration() - therefore we will indeed be evaluating the utility of
-                    # the state as if the action to take was indeed the one given by the policy we're evaluating. This
-                    # is linked to the absence of a max over the possible actions in the formula for the U_t(s))
-                    v += action_probability * (1 / len(environment.P[state][action]) * reward +
-                                               state_probability * discount_factor * V[next_state])
+                # Calculate the expected value (action_probability will actually just be 0 or 1, except in the
+                # very first iteration of policy_iteration() - therefore we will indeed be evaluating the utility of
+                # the state as if the action to take was indeed the one given by the policy we're evaluating. This
+                # is linked to the absence of a max over the possible actions in the formula for the U_t(s))
+                next_state, reward, done, info = environment.step(action)
+                next_state_index = ((np.round(next_state[0] * 100, 0).astype(int) + 120) * 141) \
+                                   + np.round(next_state[1] * 1000, 0).astype(int) + 70
+                v += action_probability * (reward + discount_factor * V[next_state_index])
             # Calculate the absolute change of value function
             delta = max(delta, np.abs(V[state] - v))
             # Update value function
@@ -65,16 +94,17 @@ def policy_evaluation(policy, environment, discount_factor=1.0, theta=1e-9, max_
 def policy_iteration(environment, discount_factor=1.0, max_iterations=1e9):
     # Start with a random policy
     # num states x num actions / num actions
-    policy = np.ones([environment.nS, environment.nA]) / environment.nA
+    policy = np.ones([mountain_car_discretized_nS, mountain_car_nA]) / mountain_car_nA
     # Initialize counter of evaluated policies
     evaluated_policies = 0
     # Repeat until convergence or critical number of iterations reached
+    t0 = time.time()
     for i in range(int(max_iterations)):
         stable_policy = True
         # Evaluate current policy
         V = policy_evaluation(policy, environment, discount_factor=discount_factor)
         # Go through each state and try to improve actions that were taken (policy Improvement)
-        for state in range(environment.nS):
+        for state in range(mountain_car_discretized_nS):
             # Choose the best action in a current state under current policy
             current_action = np.argmax(policy[state])
             # Look one step ahead and evaluate if current action is optimal
@@ -88,24 +118,26 @@ def policy_iteration(environment, discount_factor=1.0, max_iterations=1e9):
                 # Greedy policy update
                 # set all actions to 0 and the best action to 1 for current state in the matrix that represents
                 # the policy
-                policy[state] = np.eye(environment.nA)[best_action]
+                policy[state] = np.eye(mountain_car_nA)[best_action]
         evaluated_policies += 1
         # If the algorithm converged and policy is not changing anymore, then return final policy and value function
         if stable_policy:
             print(f'Evaluated {evaluated_policies} policies.')
+            print(f'Evaluated in {round(time.time() - t0, 2)} seconds.')
             return policy, V
 
 
-def value_iteration(environment, discount_factor=1.0, theta=1e-9, max_iterations=1e9):
+def value_iteration(env, discount_factor=1.0, theta=1e-9, max_iterations=1e9):
     # Initialize state-value function with zeros for each environment state
-    V = np.zeros(environment.nS)
+    V = np.zeros(mountain_car_discretized_nS)
+    t0 = time.time()
     for i in range(int(max_iterations)):
         # Early stopping condition
         delta = 0
         # Update each state
-        for state in range(environment.nS):
+        for state in range(mountain_car_discretized_nS):
             # Do a one-step lookahead to calculate state-action values
-            action_value = one_step_lookahead(environment, state, V, discount_factor)
+            action_value = one_step_lookahead(env, state, V, discount_factor)
             # Select best action to perform based on the highest state-action value
             best_action_value = np.max(action_value)
             # Calculate change in value
@@ -113,15 +145,17 @@ def value_iteration(environment, discount_factor=1.0, theta=1e-9, max_iterations
             # Update the value function for current state
             V[state] = best_action_value
             # Check if we can stop
+            # the utility function has converged - another iteration wouldn't improve its estimation by more than theta)
         if delta < theta:
             print(f'Value-iteration converged at iteration #{i}.')
+            print(f'Converged after {round(time.time() - t0, 2)} seconds.')
             break
 
     # Create a deterministic policy using the optimal value function
-    policy = np.zeros([environment.nS, environment.nA])
-    for state in range(environment.nS):
+    policy = np.zeros([mountain_car_discretized_nS, mountain_car_nA])
+    for state in range(mountain_car_discretized_nS):
         # One step lookahead to find the best action for this state
-        action_value = one_step_lookahead(environment, state, V, discount_factor)
+        action_value = one_step_lookahead(env, state, V, discount_factor)
         # Select best action based on the highest state-action value
         best_action = np.argmax(action_value)
         # Update the policy to perform a better action at a current state
@@ -157,12 +191,13 @@ n_episodes = 10000
 solvers = [('Policy Iteration', policy_iteration),
            ('Value Iteration', value_iteration)]
 for iteration_name, iteration_func in solvers:
-    # Load a Frozen Lake environment
-    environment = gym.make('FrozenLake-v0')
+    # Load a Mountain Car environment
+    environment = gym.make('MountainCar-v0')
     # Search for an optimal policy using policy iteration
     policy, V = iteration_func(environment.env)
     # Apply best policy to the real environment
     wins, total_reward, average_reward = play_episodes(environment, n_episodes, policy)
+    print(f'{iteration_name} :: policy found = {policy}')
     print(f'{iteration_name} :: number of wins over {n_episodes} episodes = {wins}')
     print(f'{iteration_name} :: average reward over {n_episodes} episodes = {average_reward} \n\n')
 
@@ -251,14 +286,13 @@ def QLearning(env, learning, discount, epsilon, min_eps, episodes):
 
     return ave_reward_list
 
-
-# Run Q-learning algorithm
-rewards = QLearning(env, 0.2, 0.9, 0.8, 0, 450000)
-
-# Plot Rewards
-plt.plot(100 * (np.arange(len(rewards)) + 1), rewards)
-plt.xlabel('Episodes')
-plt.ylabel('Average Reward')
-plt.title('Average Reward vs Episodes')
-plt.savefig('../Rewards_graphs/rewards_mountain_car.jpg')
-plt.close()
+# # Run Q-learning algorithm
+# rewards = QLearning(env, 0.2, 0.9, 0.8, 0, 450000)
+#
+# # Plot Rewards
+# plt.plot(100 * (np.arange(len(rewards)) + 1), rewards)
+# plt.xlabel('Episodes')
+# plt.ylabel('Average Reward')
+# plt.title('Average Reward vs Episodes')
+# plt.savefig('../Rewards_graphs/rewards_mountain_car.jpg')
+# plt.close()
