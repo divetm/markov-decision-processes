@@ -32,7 +32,7 @@ def one_step_lookahead(environment, state, V, discount_factor):
     return action_values
 
 
-def policy_evaluation(policy, environment, discount_factor=1.0, theta=1e-9, max_iterations=1e9):
+def policy_evaluation(policy, environment, discount_factor=0.9, theta=1e-9, max_iterations=1e9):
     # Number of evaluation iterations
     evaluation_iterations = 1
     # Initialize a value function for each state as zero
@@ -66,7 +66,7 @@ def policy_evaluation(policy, environment, discount_factor=1.0, theta=1e-9, max_
             return V
 
 
-def policy_iteration(environment, discount_factor=1.0, max_iterations=1e9):
+def policy_iteration(environment, discount_factor=0.9, max_iterations=1e9):
     # Start with a random policy
     # num states x num actions / num actions
     policy = np.ones([environment.nS, environment.nA]) / environment.nA
@@ -74,8 +74,10 @@ def policy_iteration(environment, discount_factor=1.0, max_iterations=1e9):
     evaluated_policies = 0
     # Repeat until convergence or critical number of iterations reached
     t0 = time.time()
+    list_of_changes_in_policy = []
     for i in range(int(max_iterations)):
         stable_policy = True
+        changes_in_policy = 0
         # Evaluate current policy
         V = policy_evaluation(policy, environment, discount_factor=discount_factor)
         # Go through each state and try to improve actions that were taken (policy Improvement)
@@ -90,22 +92,31 @@ def policy_iteration(environment, discount_factor=1.0, max_iterations=1e9):
             # If action changed
             if current_action != best_action:
                 stable_policy = False
+                changes_in_policy += 1
                 # Greedy policy update
                 # set all actions to 0 and the best action to 1 for current state in the matrix that represents
                 # the policy
                 policy[state] = np.eye(environment.nA)[best_action]
         evaluated_policies += 1
+        list_of_changes_in_policy.append(changes_in_policy)
+        print('{} actions changed.'.format(changes_in_policy))
         # If the algorithm converged and policy is not changing anymore, then return final policy and value function
         if stable_policy:
             print('Evaluated {} policies.'.format(evaluated_policies))
             print('Evaluated in {} seconds.'.format(round(time.time()-t0, 2)))
+            plt.plot((np.arange(len(list_of_changes_in_policy)) + 1), list_of_changes_in_policy)
+            plt.xlabel('Iterations')
+            plt.ylabel('Number of changes in policy')
+            plt.title('Number of changes in policy vs Iterations')
+            plt.show()
             return policy, V
 
 
-def value_iteration(environment, discount_factor=1.0, theta=1e-9, max_iterations=1e9):
+def value_iteration(environment, discount_factor=0.9, theta=1e-9, max_iterations=1e9):
     # Initialize state-value function with zeros for each environment state
     V = np.zeros(environment.nS)
     t0 = time.time()
+    deltas = []
     for i in range(int(max_iterations)):
         # Early stopping condition (if delta < theta then the algorithm will stop - before i = max_iterations)
         delta = 0
@@ -122,10 +133,17 @@ def value_iteration(environment, discount_factor=1.0, theta=1e-9, max_iterations
             V[state] = best_action_value
             # Check if we can stop (theta is the convergence criterion, once delta is smaller than theta we consider
             # the utility function has converged - another iteration wouldn't improve its estimation by more than theta)
+        deltas.append(delta)
         if delta < theta:
             print('Value-iteration converged at iteration #{}.'.format(i))
             print('Converged after {} seconds.'.format(round(time.time() - t0, 2)))
             break
+
+    plt.plot((np.arange(len(deltas)) + 1), deltas)
+    plt.xlabel('Iterations')
+    plt.ylabel('Delta')
+    plt.title('Delta vs Iterations')
+    plt.show()
 
     # Create a deterministic policy using the optimal value function
     policy = np.zeros([environment.nS, environment.nA])
@@ -172,9 +190,10 @@ for iteration_name, iteration_func in solvers:
     environment = gym.make('FrozenLake-v0')
     # Search for an optimal policy using policy iteration
     policy, V = iteration_func(environment.env)
+    print('{} :: policy found = {}'.format(iteration_name, policy))
+    print('{} :: values found = {}'.format(iteration_name, V))
     # Apply best policy to the real environment
     wins, total_reward, average_reward = play_episodes(environment, n_episodes, policy)
-    print('{} :: policy found = {}'.format(iteration_name, policy))
     print('{} :: number of wins over {} episodes = {}'.format(iteration_name, n_episodes, wins))
     print('{} :: average reward over {} episodes = {} \n\n'.format(iteration_name, n_episodes, average_reward))
 
@@ -239,17 +258,17 @@ def QLearning(env, learning, discount, epsilon, min_eps, episodes, exploration="
                 epsilon -= reduction
             elif exploration == "exp-decay":
                 epsilon *= 1 / 2
-            # elif exploration == "greedy" or exploration == "epsilon-greedy" epsilon mudt not change
+            # elif exploration == "greedy" or exploration == "epsilon-greedy" epsilon must not change
 
         # Track rewards
         reward_list.append(tot_reward)
 
-        if (i + 1) % 100 == 0:
+        if (i + 1) % 20000 == 0:
             ave_reward = np.mean(reward_list)
             ave_reward_list.append(ave_reward)
             reward_list = []
 
-        if (i + 1) % 100 == 0:
+        if (i + 1) % 20000 == 0:
             print('Episode {} Average Reward: {}'.format(i + 1, ave_reward))
 
     env.close()
@@ -258,12 +277,12 @@ def QLearning(env, learning, discount, epsilon, min_eps, episodes, exploration="
 
 
 # Run Q-learning algorithm
-rewards = QLearning(env, 0.2, 0.9, 0.8, 0, 1000000, exploration="linear-decay")
+rewards = QLearning(env, 0.2, 0.9, 0.056, 0, 2000000, exploration="epsilon-greedy")
 
 # Plot Rewards
-plt.plot(100 * (np.arange(len(rewards)) + 1), rewards)
+plt.plot(20000 * (np.arange(len(rewards)) + 1), rewards)
 plt.xlabel('Episodes')
 plt.ylabel('Average Reward')
 plt.title('Average Reward vs Episodes')
-plt.savefig('Rewards_graphs/rewards_frozen_lake.jpg')
+plt.savefig('Rewards_graphs/rewards_frozen_lake_alpha_0_8.jpg')
 plt.close()
